@@ -1,0 +1,31 @@
+{
+  "tests": [
+    {
+      "name": "Поиск ТН ВЭД - ноутбук",
+      "method": "POST",
+      "path": "/",
+      "body": {"query": "ноутбук"},
+      "expectedStatus": 200,
+      "expectedBody": {"source": "alta.ru"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Поиск ТН ВЭД - кофе",
+      "method": "POST",
+      "path": "/",
+      "body": {"query": "кофе"},
+      "expectedStatus": 200,
+      "expectedBody": {"source": "alta.ru"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Ошибка - пустой запрос",
+      "method": "POST",
+      "path": "/",
+      "body": {},
+      "expectedStatus": 400,
+      "expectedBody": {"error": "Укажите параметр query"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}
