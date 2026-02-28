@@ -107,7 +107,112 @@ function exportChat(chat: Chat) {
   URL.revokeObjectURL(url);
 }
 
+interface CodeDetails {
+  code: string;
+  full_name: string;
+  duty: string;
+  vat: string;
+  url: string;
+}
+
+function CodeDetailsPanel({ code, onClose }: { code: string; onClose: () => void }) {
+  const [details, setDetails] = useState<CodeDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(false);
+    fetch(TNVED_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "details", code }),
+    })
+      .then((r) => r.json())
+      .then((d) => { setDetails(d); setLoading(false); })
+      .catch(() => { setError(true); setLoading(false); });
+  }, [code]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
+      <div
+        className="relative bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md animate-scale-in"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2.5">
+            <Icon name="Package" size={16} className="text-gray-400" />
+            <span className="font-mono font-bold text-gray-900 text-lg">{code}</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+          >
+            <Icon name="X" size={15} />
+          </button>
+        </div>
+
+        <div className="px-5 py-5">
+          {loading && (
+            <div className="flex items-center gap-2 text-gray-400 text-sm">
+              <div className="flex gap-1">
+                {[0,1,2].map(i => (
+                  <span key={i} className="w-1.5 h-1.5 rounded-full bg-gray-300 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+                ))}
+              </div>
+              Загружаю данные с Alta.ru...
+            </div>
+          )}
+          {error && (
+            <p className="text-sm text-red-500">Не удалось загрузить данные. Попробуйте позже.</p>
+          )}
+          {details && !loading && (
+            <div className="space-y-4">
+              {details.full_name && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Наименование</p>
+                  <p className="text-sm text-gray-800 leading-relaxed">{details.full_name}</p>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-gray-50 border border-gray-100">
+                  <p className="text-xs text-gray-400 mb-1">Ставка пошлины</p>
+                  <p className="text-base font-semibold text-gray-900">
+                    {details.duty === "уточняется" ? (
+                      <span className="text-gray-400 text-sm font-normal">уточняется</span>
+                    ) : details.duty}
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-gray-50 border border-gray-100">
+                  <p className="text-xs text-gray-400 mb-1">НДС</p>
+                  <p className="text-base font-semibold text-gray-900">
+                    {details.vat === "уточняется" ? (
+                      <span className="text-gray-400 text-sm font-normal">уточняется</span>
+                    ) : details.vat}
+                  </p>
+                </div>
+              </div>
+              <a
+                href={details.url || `https://www.alta.ru/tnved/code/${code}/`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl border border-gray-200 text-sm text-gray-600 hover:border-gray-400 hover:text-gray-900 transition-colors"
+              >
+                <Icon name="ExternalLink" size={13} />
+                Открыть на Alta.ru
+              </a>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TnvedCard({ data }: { data: TnvedData }) {
+  const [selectedCode, setSelectedCode] = useState<string | null>(null);
+
   if (!data.results?.length) {
     return (
       <div className="mt-3 p-3 rounded-xl border border-amber-100 bg-amber-50 text-sm text-amber-700">
@@ -116,6 +221,10 @@ function TnvedCard({ data }: { data: TnvedData }) {
     );
   }
   return (
+    <>
+      {selectedCode && (
+        <CodeDetailsPanel code={selectedCode} onClose={() => setSelectedCode(null)} />
+      )}
     <div className="mt-3 rounded-xl border border-gray-200 overflow-hidden bg-white">
       <div className="px-3 py-2 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
         <Icon name="Package" size={13} className="text-gray-400" />
@@ -126,14 +235,12 @@ function TnvedCard({ data }: { data: TnvedData }) {
       </div>
       <div className="divide-y divide-gray-50">
         {data.results.map((r) => (
-          <a
+          <button
             key={r.code}
-            href={`https://www.alta.ru/tnved/?search=${encodeURIComponent(data.query)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-start gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors group"
+            onClick={() => setSelectedCode(r.code)}
+            className="w-full flex items-start gap-3 px-3 py-2.5 hover:bg-blue-50 transition-colors group text-left"
           >
-            <span className="font-mono text-sm font-semibold text-gray-900 bg-gray-100 px-2 py-0.5 rounded-md flex-shrink-0 group-hover:bg-gray-200 transition-colors">
+            <span className="font-mono text-sm font-semibold text-gray-900 bg-gray-100 px-2 py-0.5 rounded-md flex-shrink-0 group-hover:bg-blue-100 group-hover:text-blue-700 transition-colors">
               {r.code}
             </span>
             <div className="flex-1 min-w-0">
@@ -142,8 +249,10 @@ function TnvedCard({ data }: { data: TnvedData }) {
                 <p className="text-xs text-gray-400 mt-0.5 truncate">{r.group_name}</p>
               )}
             </div>
-            <Icon name="ExternalLink" size={12} className="text-gray-300 group-hover:text-gray-500 flex-shrink-0 mt-1 transition-colors" />
-          </a>
+            <span className="text-[10px] text-gray-300 group-hover:text-blue-400 flex-shrink-0 mt-1 transition-colors font-medium">
+              детали →
+            </span>
+          </button>
         ))}
       </div>
       <div className="px-3 py-2 border-t border-gray-100">
@@ -158,6 +267,7 @@ function TnvedCard({ data }: { data: TnvedData }) {
         </a>
       </div>
     </div>
+    </>
   );
 }
 
